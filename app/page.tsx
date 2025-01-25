@@ -9,6 +9,8 @@ export default function AIChatPage() {
   const [response, setResponse] = useState('')
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [questionHistory, setQuestionHistory] = useState<Array<{question: string; answer: string}>>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -43,6 +45,15 @@ export default function AIChatPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+      
+      if (!file.name.endsWith('.xlsx')) {
+        alert('Please upload only Excel (.xlsx) files')
+        e.target.value = ''
+        return
+      }
+
+      setIsUploading(true)
+      setUploadStatus('uploading')
       const formData = new FormData()
       formData.append('file', file)
 
@@ -57,10 +68,17 @@ export default function AIChatPage() {
         }
 
         setUploadedFiles(prev => [...prev, file])
+        setUploadStatus('success')
         e.target.value = ''
+        
+        setTimeout(() => {
+          setUploadStatus('idle')
+        }, 3000)
       } catch (error) {
         console.error('Error uploading file:', error)
-        // Add error handling UI here
+        setUploadStatus('error')
+      } finally {
+        setIsUploading(false)
       }
     }
   }
@@ -86,45 +104,82 @@ export default function AIChatPage() {
                   onChange={handleFileUpload}
                   className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   accept=".xlsx"
+                  disabled={isUploading}
                 />
                 <button 
                   type="button" 
-                  className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition-colors"
+                  className={`px-4 py-2 bg-navy-600 text-white rounded-lg transition-colors ${
+                    isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-navy-700'
+                  }`}
                 >
                   Choose File
                 </button>
               </div>
             </div>
             
-            {/* Display uploaded files */}
+            {/* Upload Status Section */}
             <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Uploaded Files:</h3>
-              {uploadedFiles.length > 0 ? (
-                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                  {uploadedFiles.map((file, index) => (
-                    <div key={index} className="text-sm text-gray-600 flex items-center justify-between bg-gray-50 p-2 rounded">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        {file.name}
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Upload Status:</h3>
+              <div className="min-h-[50px] border border-gray-200 rounded-lg p-3">
+                {uploadStatus === 'uploading' && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <svg className="animate-spin h-5 w-5 text-navy-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Uploading file...</span>
+                  </div>
+                )}
+                
+                {uploadStatus === 'success' && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>File uploaded successfully!</span>
+                  </div>
+                )}
+                
+                {uploadStatus === 'error' && (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Error uploading file. Please try again.</span>
+                  </div>
+                )}
+                
+                {uploadedFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                        <div className="flex items-center gap-2">
+                          <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Uploaded: {file.name}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setUploadedFiles(files => files.filter((_, i) => i !== index));
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          setUploadedFiles(files => files.filter((_, i) => i !== index));
-                        }}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 border border-dashed border-gray-300 rounded-lg p-4 text-center">
-                  No files uploaded yet
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+                
+                {uploadStatus === 'idle' && uploadedFiles.length === 0 && (
+                  <div className="text-sm text-gray-500">
+                    No files uploaded yet
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -134,7 +189,7 @@ export default function AIChatPage() {
           <div className="col-span-2 space-y-4">
             {/* Question History */}
             <div className="bg-white rounded-lg p-4 shadow-md mb-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">Chat History</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">Answers</h2>
               {questionHistory.length > 0 ? (
                 <div className="space-y-4">
                   {questionHistory.map((item, index) => (
