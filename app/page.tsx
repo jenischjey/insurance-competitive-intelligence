@@ -17,6 +17,7 @@ export default function AIChatPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [loadedDocuments, setLoadedDocuments] = useState<LoadedDocument[]>([])
+  const [expandedRefs, setExpandedRefs] = useState<{ [key: number]: boolean }>({})
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -108,6 +109,13 @@ export default function AIChatPage() {
     }
   }
 
+  const toggleReference = (index: number) => {
+    setExpandedRefs(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -120,7 +128,7 @@ export default function AIChatPage() {
       <div className="max-w-6xl mx-auto p-6">
         {/* File Upload Section */}
         <div className="mb-8 bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Upload Reference Documents</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-800">Upload 10K Filings</h2>
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -250,27 +258,97 @@ export default function AIChatPage() {
           {/* References Panel */}
           <div className="col-span-1">
             <div className="sticky top-6">
-              <h3 className="font-semibold mb-3 text-gray-800">Reference Materials</h3>
-              {isLoading ? (
-                <div className="space-y-2">
-                  {references.map((ref, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full bg-purple-500 animate-pulse" />
-                      <div className="text-sm text-gray-600">
-                        Downloading {ref}...
+              <div className="bg-white rounded-lg p-6 shadow-md">
+                <h3 className="text-xl font-semibold mb-4 text-gray-800">Reference Materials</h3>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    <div className="animate-pulse flex space-x-4">
+                      <div className="flex-1 space-y-3">
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : references.length > 0 && (
-                <div className="space-y-2">
-                  {references.map((ref, index) => (
-                    <div key={index} className="p-2 bg-white rounded shadow-sm text-sm text-gray-800">
-                      {ref}
-                    </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ) : references.length > 0 ? (
+                  <div className="space-y-4">
+                    {references.map((ref, index) => {
+                      const isExpanded = expandedRefs[index] || false;
+                      const shouldTruncate = ref.length > 200;
+                      const displayText = shouldTruncate && !isExpanded 
+                        ? ref.slice(0, 200) + '...' 
+                        : ref;
+
+                      return (
+                        <div 
+                          key={index} 
+                          className="p-4 bg-gray-50 rounded-lg border border-gray-100 hover:border-purple-200 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <svg 
+                              className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                              />
+                            </svg>
+                            <div className="space-y-2 flex-1">
+                              <div className="text-sm text-gray-700 leading-relaxed">
+                                {displayText}
+                              </div>
+                              {shouldTruncate && (
+                                <button
+                                  onClick={() => toggleReference(index)}
+                                  className="text-navy-600 hover:text-navy-700 text-sm font-medium flex items-center gap-1"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      Show Less
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                      </svg>
+                                    </>
+                                  ) : (
+                                    <>
+                                      Show More
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                      </svg>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <svg 
+                      className="mx-auto h-12 w-12 text-gray-400 mb-4" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                      />
+                    </svg>
+                    <p className="text-sm">No reference materials available</p>
+                    <p className="text-xs text-gray-400 mt-1">References will appear here when you ask a question</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
