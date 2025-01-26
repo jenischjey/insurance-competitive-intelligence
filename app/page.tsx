@@ -1,6 +1,11 @@
 'use client'
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 import { QueryResponse } from './types'
+
+interface LoadedDocument {
+  filename: string;
+  size?: number;
+}
 
 export default function AIChatPage() {
   const [query, setQuery] = useState('')
@@ -11,6 +16,7 @@ export default function AIChatPage() {
   const [questionHistory, setQuestionHistory] = useState<Array<{question: string; answer: string}>>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  const [loadedDocuments, setLoadedDocuments] = useState<LoadedDocument[]>([])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -42,20 +48,38 @@ export default function AIChatPage() {
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      
-      if (!file.name.endsWith('.xlsx')) {
-        alert('Please upload only Excel (.xlsx) files')
-        e.target.value = ''
-        return
+  const fetchDocuments = async () => {
+    try {
+      const response = await fetch('/api/documents')
+      const data = await response.json()
+      if (data.documents) {
+        setLoadedDocuments(data.documents)
+      } else {
+        setLoadedDocuments([])
       }
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+      setLoadedDocuments([])
+    }
+  }
 
+  useEffect(() => {
+    fetchDocuments()
+  }, [])
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
       setIsUploading(true)
       setUploadStatus('uploading')
+      
       const formData = new FormData()
-      formData.append('file', file)
+      Array.from(e.target.files).forEach(file => {
+        if (!file.name.endsWith('.xlsx')) {
+          alert('Please upload only Excel (.xlsx) files')
+          return
+        }
+        formData.append('files', file)
+      })
 
       try {
         const response = await fetch('/api/documents', {
@@ -64,18 +88,19 @@ export default function AIChatPage() {
         })
 
         if (!response.ok) {
-          throw new Error('Failed to upload file')
+          throw new Error('Failed to upload files')
         }
 
-        setUploadedFiles(prev => [...prev, file])
         setUploadStatus('success')
+        await fetchDocuments()
+        
         e.target.value = ''
         
         setTimeout(() => {
           setUploadStatus('idle')
         }, 3000)
       } catch (error) {
-        console.error('Error uploading file:', error)
+        console.error('Error uploading files:', error)
         setUploadStatus('error')
       } finally {
         setIsUploading(false)
@@ -104,6 +129,7 @@ export default function AIChatPage() {
                   onChange={handleFileUpload}
                   className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   accept=".xlsx"
+                  multiple
                   disabled={isUploading}
                 />
                 <button 
@@ -112,7 +138,7 @@ export default function AIChatPage() {
                     isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-navy-700'
                   }`}
                 >
-                  Choose File
+                  Choose Files
                 </button>
               </div>
             </div>
@@ -127,7 +153,7 @@ export default function AIChatPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Uploading file...</span>
+                    <span>Uploading files...</span>
                   </div>
                 )}
                 
@@ -136,7 +162,7 @@ export default function AIChatPage() {
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>File uploaded successfully!</span>
+                    <span>Files uploaded successfully!</span>
                   </div>
                 )}
                 
@@ -145,39 +171,29 @@ export default function AIChatPage() {
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span>Error uploading file. Please try again.</span>
+                    <span>Error uploading files. Please try again.</span>
                   </div>
                 )}
                 
-                {uploadedFiles.length > 0 && (
-                  <div className="space-y-2">
-                    {uploadedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        <div className="flex items-center gap-2">
-                          <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>Uploaded: {file.name}</span>
+                {uploadStatus !== 'uploading' && (
+                  loadedDocuments.length > 0 ? (
+                    <div className="space-y-2">
+                      {loadedDocuments.map((doc, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                          <div className="flex items-center gap-2">
+                            <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>{doc.filename}</span>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            setUploadedFiles(files => files.filter((_, i) => i !== index));
-                          }}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {uploadStatus === 'idle' && uploadedFiles.length === 0 && (
-                  <div className="text-sm text-gray-500">
-                    No files uploaded yet
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      No files uploaded yet
+                    </div>
+                  )
                 )}
               </div>
             </div>
